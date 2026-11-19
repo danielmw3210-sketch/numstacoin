@@ -2323,6 +2323,54 @@ namespace cryptonote
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
+  bool core_rpc_server::on_get_numista_asset(const COMMAND_RPC_GET_NUMISTA_ASSET::request& req, COMMAND_RPC_GET_NUMISTA_ASSET::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
+  {
+    crypto::hash asset_id;
+    if (!epee::string_tools::hex_to_pod(req.asset_id, asset_id))
+    {
+      error_resp.code = CORE_RPC_ERROR_CODE_WRONG_PARAM;
+      error_resp.message = "Invalid Numista asset ID";
+      return false;
+    }
+
+    numista_asset_record record;
+    res.found = m_core.get_blockchain_storage().get_numista_asset(asset_id, record);
+    if (res.found)
+    {
+      res.asset_id = req.asset_id;
+      res.asset_type = record.type == numista_asset_type::fungible ? "fungible" : "collectible";
+      res.max_supply = record.max_supply;
+      res.total_supply = record.total_supply;
+      res.metadata_hash = epee::string_tools::pod_to_hex(record.metadata_hash);
+    }
+    res.status = CORE_RPC_STATUS_OK;
+    return true;
+  }
+  //------------------------------------------------------------------------------------------------------------------------------
+  bool core_rpc_server::on_get_numista_asset_balance(const COMMAND_RPC_GET_NUMISTA_ASSET_BALANCE::request& req, COMMAND_RPC_GET_NUMISTA_ASSET_BALANCE::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
+  {
+    crypto::hash asset_id;
+    if (!epee::string_tools::hex_to_pod(req.asset_id, asset_id))
+    {
+      error_resp.code = CORE_RPC_ERROR_CODE_WRONG_PARAM;
+      error_resp.message = "Invalid Numista asset ID";
+      return false;
+    }
+    res.asset_found = m_core.get_blockchain_storage().get_numista_asset_balance(asset_id, req.username, res.balance);
+    res.status = CORE_RPC_STATUS_OK;
+    return true;
+  }
+  //------------------------------------------------------------------------------------------------------------------------------
+  bool core_rpc_server::on_get_numista_asset_username_key(const COMMAND_RPC_GET_NUMISTA_ASSET_USERNAME_KEY::request& req, COMMAND_RPC_GET_NUMISTA_ASSET_USERNAME_KEY::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
+  {
+    crypto::public_key asset_key;
+    res.registered = m_core.get_blockchain_storage().get_numista_asset_username_key(req.username, asset_key);
+    if (res.registered)
+      res.asset_key = epee::string_tools::pod_to_hex(asset_key);
+    res.status = CORE_RPC_STATUS_OK;
+    return true;
+  }
+  //------------------------------------------------------------------------------------------------------------------------------
   bool core_rpc_server::on_hard_fork_info(const COMMAND_RPC_HARD_FORK_INFO::request& req, COMMAND_RPC_HARD_FORK_INFO::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
   {
     RPC_TRACKER(hard_fork_info);

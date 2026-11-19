@@ -768,8 +768,91 @@ inline const std::string get_rpc_status(const bool trusted_daemon, const std::st
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  //-----------------------------------------------
+  struct COMMAND_RPC_GET_NUMISTA_ASSET
+  {
+    struct request_t: public rpc_request_base
+    {
+      std::string asset_id;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_request_base)
+        KV_SERIALIZE(asset_id)
+      END_KV_SERIALIZE_MAP()
+    };
+    typedef epee::misc_utils::struct_init<request_t> request;
 
-    
+    struct response_t: public rpc_response_base
+    {
+      bool found;
+      std::string asset_id;
+      std::string asset_type;
+      uint64_t max_supply;
+      uint64_t total_supply;
+      std::string metadata_hash;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_response_base)
+        KV_SERIALIZE(found)
+        KV_SERIALIZE(asset_id)
+        KV_SERIALIZE(asset_type)
+        KV_SERIALIZE(max_supply)
+        KV_SERIALIZE(total_supply)
+        KV_SERIALIZE(metadata_hash)
+      END_KV_SERIALIZE_MAP()
+    };
+    typedef epee::misc_utils::struct_init<response_t> response;
+  };
+  //-----------------------------------------------
+  struct COMMAND_RPC_GET_NUMISTA_ASSET_BALANCE
+  {
+    struct request_t: public rpc_request_base
+    {
+      std::string asset_id;
+      std::string username;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_request_base)
+        KV_SERIALIZE(asset_id)
+        KV_SERIALIZE(username)
+      END_KV_SERIALIZE_MAP()
+    };
+    typedef epee::misc_utils::struct_init<request_t> request;
+
+    struct response_t: public rpc_response_base
+    {
+      bool asset_found;
+      uint64_t balance;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_response_base)
+        KV_SERIALIZE(asset_found)
+        KV_SERIALIZE(balance)
+      END_KV_SERIALIZE_MAP()
+    };
+    typedef epee::misc_utils::struct_init<response_t> response;
+  };
+  //-----------------------------------------------
+  struct COMMAND_RPC_GET_NUMISTA_ASSET_USERNAME_KEY
+  {
+    struct request_t: public rpc_request_base
+    {
+      std::string username;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_request_base)
+        KV_SERIALIZE(username)
+      END_KV_SERIALIZE_MAP()
+    };
+    typedef epee::misc_utils::struct_init<request_t> request;
+
+    struct response_t: public rpc_response_base
+    {
+      bool registered;
+      std::string asset_key;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_response_base)
+        KV_SERIALIZE(registered)
+        KV_SERIALIZE(asset_key)
+      END_KV_SERIALIZE_MAP()
+    };
+    typedef epee::misc_utils::struct_init<response_t> response;
+  };
   //-----------------------------------------------
   struct COMMAND_RPC_GET_NET_STATS
   {

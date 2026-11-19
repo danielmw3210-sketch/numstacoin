@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "serialization/binary_archive.h"
+#include "serialization/string.h"
 #include "crypto/crypto.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
 
@@ -347,11 +348,19 @@ namespace cryptonote
 
   uint64_t numista_asset_ledger::get_balance(const crypto::hash& asset_id, const std::string& username) const
   {
+    uint64_t balance = 0;
+    get_balance(asset_id, username, balance);
+    return balance;
+  }
+
+  bool numista_asset_ledger::get_balance(const crypto::hash& asset_id, const std::string& username, uint64_t& balance) const
+  {
     const auto asset = m_balances.find(asset_id);
     if (asset == m_balances.end())
-      return 0;
-    const auto balance = asset->second.find(username);
-    return balance == asset->second.end() ? 0 : balance->second;
+      return false;
+    const auto balance_it = asset->second.find(username);
+    balance = balance_it == asset->second.end() ? 0 : balance_it->second;
+    return true;
   }
 
   bool numista_asset_ledger::get_username_key(const std::string& username, crypto::public_key& key) const

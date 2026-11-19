@@ -102,7 +102,129 @@ namespace cryptonote
     LOG_PRINT_L2("destinations include " << num_stdaddresses << " standard addresses and " << num_subaddresses << " subaddresses");
   }
   //---------------------------------------------------------------
-  bool construct_miner_tx(size_t height, size_t median_weight, uint64_t already_generated_coins, size_t current_block_weight, uint64_t fee, const account_public_address &miner_address, transaction& tx, const blobdata& extra_nonce, size_t max_outs, uint8_t hard_fork_version) {
+  namespace
+  {
+    bool get_numista_game_fund_address(account_public_address& address)
+    {
+      return epee::string_tools::hex_to_pod(config::numista_testnet::NUMISTA_GAME_FUND_SPEND_PUBLIC_KEY_HEX, address.m_spend_public_key)
+        && epee::string_tools::hex_to_pod(config::numista_testnet::NUMISTA_GAME_FUND_VIEW_PUBLIC_KEY_HEX, address.m_view_public_key)
+        && crypto::check_key(address.m_spend_public_key)
+        && crypto::check_key(address.m_view_public_key);
+    }
+
+    bool get_numista_game_fund_tx_key(size_t height, crypto::secret_key& secret_key, crypto::public_key& public_key)
+    {
+      std::string preimage = "Numista game fund tx key";
+      preimage += std::to_string(height);
+      crypto::ec_scalar scalar;
+      crypto::hash_to_scalar(preimage.data(), preimage.size(), scalar);
+      static_cast<crypto::ec_scalar&>(crypto::unwrap(secret_key)) = scalar;
+      return crypto::secret_key_to_public_key(secret_key, public_key);
+    }
+
+    bool add_numista_game_fund_output(transaction& tx, const keypair& txkey, size_t height, uint8_t hard_fork_version)
+    {
+      account_public_address address = AUTO_VAL_INIT(address);
+      if (!get_numista_game_fund_address(address))
+        return false;
+
+      crypto::secret_key fund_tx_secret;
+      crypto::public_key fund_tx_public;
+      if (!get_numista_game_fund_tx_key(height, fund_tx_secret, fund_tx_public))
+        return false;
+      crypto::key_derivation derivation = AUTO_VAL_INIT(derivation);
+      if (!crypto::generate_key_derivation(address.m_view_public_key, fund_tx_secret, derivation))
+        return false;
+      const size_t output_index = tx.vout.size();
+      crypto::public_key output_key = AUTO_VAL_INIT(output_key);
+      if (!crypto::derive_public_key(derivation, output_index, address.m_spend_public_key, output_key))
+        return false;
+
+      const bool use_view_tags = hard_fork_version >= HF_VERSION_VIEW_TAGS;
+      crypto::view_tag view_tag;
+      if (use_view_tags)
+        crypto::derive_view_tag(derivation, output_index, view_tag);
+
+      tx_out output;
+      cryptonote::set_tx_out(config::numista_testnet::NUMISTA_GAME_FUND_REWARD, output_key, use_view_tags, view_tag, output);
+      tx.vout.push_back(std::move(output));
+
+      std::vector<crypto::public_key> additional_tx_pub_keys(tx.vout.size(), txkey.pub);
+      additional_tx_pub_keys.back() = fund_tx_public;
+      return add_additional_tx_pub_keys_to_extra(tx.extra, additional_tx_pub_keys)
+        && sort_tx_extra(tx.extra, tx.extra);
+    }
+  }
+
+  uint64_t get_numista_game_fund_reward(network_type nettype)
+  {
+    return nettype == NUMISTA_TESTNET ? config::numista_testnet::NUMISTA_GAME_FUND_REWARD : 0;
+  }
+
+  bool has_valid_numista_game_fund_output(const transaction& tx, network_type nettype, uint8_t hard_fork_version)
+  {
+    const uint64_t expected_amount = get_numista_game_fund_reward(nettype);
+    if (expected_amount == 0)
+      return true;
+
+    account_public_address address = AUTO_VAL_INIT(address);
+    if (!get_numista_game_fund_address(address))
+      return false;
+
+    if (tx.vin.empty() || tx.vin.front().type() != typeid(txin_gen))
+      return false;
+    const size_t height = boost::get<txin_gen>(tx.vin.front()).height;
+    crypto::secret_key fund_tx_secret;
+    crypto::public_key fund_tx_public;
+    if (!get_numista_game_fund_tx_key(height, fund_tx_secret, fund_tx_public))
+      return false;
+    const std::vector<crypto::public_key> additional_tx_pub_keys = get_additional_tx_pub_keys_from_extra(tx);
+    if (additional_tx_pub_keys.size() != tx.vout.size())
+      return false;
+
+    crypto::key_derivation derivation = AUTO_VAL_INIT(derivation);
+    if (!crypto::generate_key_derivation(address.m_view_public_key, fund_tx_secret, derivation))
+      return false;
+
+    size_t matches = 0;
+    size_t fund_output_index = tx.vout.size();
+    for (size_t i = 0; i < tx.vout.size(); ++i)
+    {
+      crypto::public_key expected_key = AUTO_VAL_INIT(expected_key);
+      crypto::public_key output_key = AUTO_VAL_INIT(output_key);
+      if (!crypto::derive_public_key(derivation, i, address.m_spend_public_key, expected_key)
+        || !get_output_public_key(tx.vout[i], output_key)
+        || output_key != expected_key)
+        continue;
+      if (tx.vout[i].amount != expected_amount || additional_tx_pub_keys[i] != fund_tx_public)
+        return false;
+      if (hard_fork_version >= HF_VERSION_VIEW_TAGS)
+      {
+        crypto::view_tag expected_tag;
+        crypto::derive_view_tag(derivation, i, expected_tag);
+        const boost::optional<crypto::view_tag> output_tag = get_output_view_tag(tx.vout[i]);
+        if (!output_tag || *output_tag != expected_tag)
+          return false;
+      }
+      ++matches;
+      fund_output_index = i;
+    }
+    if (matches != 1)
+      return false;
+    const crypto::public_key miner_tx_public = get_tx_pub_key_from_extra(tx);
+    if (!crypto::check_key(miner_tx_public))
+      return false;
+    for (size_t i = 0; i < additional_tx_pub_keys.size(); ++i)
+    {
+      if (i == fund_output_index)
+        continue;
+      if (additional_tx_pub_keys[i] != miner_tx_public)
+        return false;
+    }
+    return true;
+  }
+
+  bool construct_miner_tx(size_t height, size_t median_weight, uint64_t already_generated_coins, size_t current_block_weight, uint64_t fee, const account_public_address &miner_address, transaction& tx, const blobdata& extra_nonce, size_t max_outs, uint8_t hard_fork_version, network_type nettype) {
     tx.vin.clear();
     tx.vout.clear();
     tx.extra.clear();
@@ -191,6 +313,11 @@ namespace cryptonote
     }
 
     CHECK_AND_ASSERT_MES(summary_amounts == block_reward, false, "Failed to construct miner tx, summary_amounts = " << summary_amounts << " not equal block_reward = " << block_reward);
+    if (get_numista_game_fund_reward(nettype) && !add_numista_game_fund_output(tx, txkey, height, hard_fork_version))
+    {
+      LOG_PRINT_L0("Failed to construct Numista game-fund reward output");
+      return false;
+    }
 
     if (hard_fork_version >= 4)
       tx.version = 2;

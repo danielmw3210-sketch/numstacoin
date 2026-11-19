@@ -43,6 +43,7 @@
 #include "cryptonote_basic/account.h"
 #include "cryptonote_basic/account_boost_serialization.h"
 #include "cryptonote_basic/cryptonote_basic_impl.h"
+#include "cryptonote_basic/numista_assets.h"
 #include "net/http.h"
 #include "storages/http_abstract_invoke.h"
 #include "rpc/core_rpc_server_commands_defs.h"
@@ -825,6 +826,7 @@ private:
     bool verify_password(const epee::wipeable_string& password, crypto::secret_key &spend_key_out, cryptonote::account_keys &keys_out);
     cryptonote::account_base& get_account(){return m_account;}
     const cryptonote::account_base& get_account()const{return m_account;}
+    bool sign_numista_asset_operation(cryptonote::tx_extra_numista_asset& operation, std::string& error) const;
 
     bool is_key_encryption_enabled() const;
     void encrypt_keys(const crypto::chacha_key &key);

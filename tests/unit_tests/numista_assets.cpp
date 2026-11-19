@@ -9,6 +9,8 @@
 #include "cryptonote_basic/cryptonote_basic.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "cryptonote_basic/numista_assets.h"
+#include "cryptonote_basic/account.h"
+#include "cryptonote_core/cryptonote_tx_utils.h"
 #include "hardforks/hardforks.h"
 
 namespace
@@ -245,6 +247,24 @@ TEST(numista_assets, numista_testnet_is_isolated_and_activates_asset_fork)
   EXPECT_EQ(1, numista_testnet_hard_forks[0].version);
   EXPECT_EQ(17, numista_testnet_hard_forks[1].version);
   EXPECT_EQ(1, numista_testnet_hard_forks[1].height);
+}
+
+TEST(numista_assets, numista_testnet_coinbase_includes_a_verifiable_game_fund_output)
+{
+  cryptonote::account_base miner;
+  miner.generate();
+  cryptonote::transaction coinbase;
+  ASSERT_TRUE(cryptonote::construct_miner_tx(
+    1, 300000, 0, 1000, 0, miner.get_keys().m_account_address, coinbase, {}, 999,
+    HF_VERSION_NUMISTA_ASSETS, cryptonote::NUMISTA_TESTNET));
+  EXPECT_TRUE(cryptonote::has_valid_numista_game_fund_output(
+    coinbase, cryptonote::NUMISTA_TESTNET, HF_VERSION_NUMISTA_ASSETS));
+  ASSERT_EQ(2, coinbase.vout.size());
+  EXPECT_EQ(config::numista_testnet::NUMISTA_GAME_FUND_REWARD, coinbase.vout.back().amount);
+
+  coinbase.vout.back().amount += 1;
+  EXPECT_FALSE(cryptonote::has_valid_numista_game_fund_output(
+    coinbase, cryptonote::NUMISTA_TESTNET, HF_VERSION_NUMISTA_ASSETS));
 }
 
 TEST(numista_assets, copying_ledger_provides_a_reversible_candidate_state)

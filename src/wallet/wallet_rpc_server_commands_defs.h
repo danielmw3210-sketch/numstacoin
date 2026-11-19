@@ -677,6 +677,54 @@ namespace wallet_rpc
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
+  struct COMMAND_RPC_NUMISTA_ASSET_OPERATION
+  {
+    struct request_t
+    {
+      std::string action;
+      std::string asset_id;
+      std::string asset_type;
+      uint64_t max_supply;
+      uint64_t amount;
+      std::string metadata_hash;
+      std::string username;
+      std::string recipient_username;
+      std::string asset_key;
+      uint32_t account_index;
+      std::set<uint32_t> subaddr_indices;
+      uint32_t priority;
+      uint64_t ring_size;
+      bool do_not_relay;
+      bool get_tx_key;
+      bool get_tx_hex;
+      bool get_tx_metadata;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(action)
+        KV_SERIALIZE_OPT(asset_id, std::string())
+        KV_SERIALIZE_OPT(asset_type, std::string())
+        KV_SERIALIZE_OPT(max_supply, (uint64_t)0)
+        KV_SERIALIZE_OPT(amount, (uint64_t)0)
+        KV_SERIALIZE_OPT(metadata_hash, std::string())
+        KV_SERIALIZE_OPT(username, std::string())
+        KV_SERIALIZE_OPT(recipient_username, std::string())
+        KV_SERIALIZE_OPT(asset_key, std::string())
+        KV_SERIALIZE_OPT(account_index, (uint32_t)0)
+        KV_SERIALIZE_OPT(subaddr_indices, std::set<uint32_t>())
+        KV_SERIALIZE_OPT(priority, (uint32_t)1)
+        KV_SERIALIZE_OPT(ring_size, (uint64_t)0)
+        KV_SERIALIZE_OPT(do_not_relay, false)
+        KV_SERIALIZE_OPT(get_tx_key, false)
+        KV_SERIALIZE_OPT(get_tx_hex, false)
+        KV_SERIALIZE_OPT(get_tx_metadata, false)
+      END_KV_SERIALIZE_MAP()
+    };
+    typedef epee::misc_utils::struct_init<request_t> request;
+
+    typedef single_transfer_response response_t;
+    typedef epee::misc_utils::struct_init<response_t> response;
+  };
+
   struct split_transfer_response
   {
     std::list<std::string> tx_hash_list;

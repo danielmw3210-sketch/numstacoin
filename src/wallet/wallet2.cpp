@@ -1364,6 +1364,75 @@ bool wallet2::has_numista_testnet_option(const boost::program_options::variables
   return command_line::get_arg(vm, options().numista_testnet);
 }
 
+bool wallet2::sign_numista_asset_operation(cryptonote::tx_extra_numista_asset& operation, std::string& error) const
+{
+  error.clear();
+  if (m_nettype != cryptonote::NUMISTA_TESTNET)
+  {
+    error = "Numista asset operations are only available on Numista testnet";
+    return false;
+  }
+  if (watch_only() || key_on_device())
+  {
+    error = "Numista asset signing requires a software wallet with spend keys";
+    return false;
+  }
+
+  const cryptonote::account_keys& keys = m_account.get_keys();
+  crypto::public_key signing_key;
+  switch (operation.action)
+  {
+    case cryptonote::numista_asset_action::register_username:
+    case cryptonote::numista_asset_action::create_asset:
+    case cryptonote::numista_asset_action::mint:
+      if (!epee::string_tools::hex_to_pod(
+          config::numista_testnet::NUMISTA_ASSET_ISSUER_PUBLIC_KEY_HEX, signing_key)
+        || keys.m_account_address.m_spend_public_key != signing_key)
+      {
+        error = "This wallet is not the configured Numista testnet asset issuer";
+        return false;
+      }
+      break;
+    case cryptonote::numista_asset_action::transfer:
+    {
+      cryptonote::COMMAND_RPC_GET_NUMISTA_ASSET_USERNAME_KEY::request request;
+      cryptonote::COMMAND_RPC_GET_NUMISTA_ASSET_USERNAME_KEY::response response;
+      request.username = operation.username;
+      bool called;
+      {
+        const boost::lock_guard<boost::recursive_mutex> lock{m_daemon_rpc_mutex};
+        called = epee::net_utils::invoke_http_json_rpc(
+          "/json_rpc", "get_numista_asset_username_key", request, response, *m_http_client, rpc_timeout);
+      }
+      if (!called || response.status != CORE_RPC_STATUS_OK || !response.registered
+        || !epee::string_tools::hex_to_pod(response.asset_key, signing_key)
+        || signing_key != keys.m_account_address.m_spend_public_key)
+      {
+        error = "Loaded wallet is not the registered owner key for this username";
+        return false;
+      }
+      break;
+    }
+    default:
+      error = "Unknown Numista asset action";
+      return false;
+  }
+
+  crypto::public_key derived_key;
+  if (!crypto::secret_key_to_public_key(keys.m_spend_secret_key, derived_key)
+    || derived_key != signing_key)
+  {
+    error = "Wallet spend key does not match the required Numista asset signing key";
+    return false;
+  }
+  if (!cryptonote::sign_numista_asset_operation(operation, signing_key, keys.m_spend_secret_key))
+  {
+    error = "Failed to sign Numista asset operation";
+    return false;
+  }
+  return true;
+}
+
 bool wallet2::has_mainnet_option(const boost::program_options::variables_map& vm)
 {
   return command_line::get_arg(vm, options().mainnet);
