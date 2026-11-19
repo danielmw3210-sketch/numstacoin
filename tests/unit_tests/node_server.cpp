@@ -1329,6 +1329,7 @@ TEST(cryptonote_protocol_handler, race_condition)
         options_t options;
         boost::program_options::store(
           boost::program_options::command_line_parser({
+            "--mainnet",
             "--data-dir",
             (dir / "main").string(),
             "--disable-dns-checkpoints",
@@ -1356,6 +1357,7 @@ TEST(cryptonote_protocol_handler, race_condition)
         options_t options;
         boost::program_options::store(
           boost::program_options::command_line_parser({
+            "--mainnet",
             "--data-dir",
             (dir / "alt").string(),
             "--disable-dns-checkpoints",

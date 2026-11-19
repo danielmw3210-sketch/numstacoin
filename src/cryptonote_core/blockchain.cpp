@@ -555,6 +555,9 @@ bool Blockchain::check_numista_asset_tx(const transaction& tx) const
 {
   CRITICAL_REGION_LOCAL1(m_blockchain_lock);
 
+  if (m_nettype != NUMISTA_TESTNET)
+    return true;
+
   bool has_asset_operation = false;
   if (!has_numista_asset_operation(tx.extra, has_asset_operation))
     return false;
@@ -596,6 +599,12 @@ bool Blockchain::rebuild_numista_asset_state()
   CRITICAL_REGION_LOCAL1(m_blockchain_lock);
 
   numista_asset_ledger rebuilt(m_numista_asset_issuer_key);
+  if (m_nettype != NUMISTA_TESTNET)
+  {
+    m_numista_assets = std::move(rebuilt);
+    return true;
+  }
+
   const uint64_t chain_height = m_db->height();
   for (uint64_t height = 0; height < chain_height; ++height)
   {
@@ -719,12 +728,13 @@ block Blockchain::pop_block_from_blockchain(bool keep_txs)
   // make sure the hard fork object updates its current version
   m_hardfork->on_block_popped(1);
 
-  for (const transaction& tx : popped_txs)
-  {
-    std::string error;
-    if (!m_numista_assets.revert_tx_extra(tx.extra, &error))
-      CHECK_AND_ASSERT_THROW_MES(false, "Failed to revert Numista asset state while popping block: " << error);
-  }
+  if (m_nettype == NUMISTA_TESTNET)
+    for (const transaction& tx : popped_txs)
+    {
+      std::string error;
+      if (!m_numista_assets.revert_tx_extra(tx.extra, &error))
+        CHECK_AND_ASSERT_THROW_MES(false, "Failed to revert Numista asset state while popping block: " << error);
+    }
 
   // return transactions from popped block to the tx_pool
   size_t pruned = 0;
@@ -1512,7 +1522,8 @@ bool Blockchain::validate_miner_transaction(const block& b, size_t cumulative_bl
     MERROR_VER("block weight " << cumulative_block_weight << " is bigger than allowed for this blockchain");
     return false;
   }
-  const uint64_t game_fund_reward = get_numista_game_fund_reward(m_nettype);
+  const size_t height = boost::get<txin_gen>(b.miner_tx.vin.front()).height;
+  const uint64_t game_fund_reward = get_numista_game_fund_reward(m_nettype, height);
   if (game_fund_reward && !has_valid_numista_game_fund_output(b.miner_tx, m_nettype, version))
   {
     MERROR_VER("miner transaction does not pay the required Numista game-fund reward");
@@ -4031,8 +4042,9 @@ leave:
     goto leave;
   }
 
-  if (!has_numista_asset_operation(bl.miner_tx.extra, miner_has_asset_operation)
-    || miner_has_asset_operation)
+  if (m_nettype == NUMISTA_TESTNET
+    && (!has_numista_asset_operation(bl.miner_tx.extra, miner_has_asset_operation)
+      || miner_has_asset_operation))
   {
     MERROR_VER("Miner transaction contains an invalid Numista asset operation");
     bvc.m_verifivation_failed = true;
@@ -4334,26 +4346,29 @@ leave:
     t_dblspnd += dd;
     TIME_MEASURE_START(cc);
 
-    bool has_asset_operation = false;
-    if (!has_numista_asset_operation(tx.extra, has_asset_operation)
-      || (has_asset_operation && hf_version < HF_VERSION_NUMISTA_ASSETS))
+    if (m_nettype == NUMISTA_TESTNET)
     {
-      MERROR_VER("Transaction has malformed or pre-activation Numista asset data");
-      bvc.m_verifivation_failed = true;
-      add_block_as_invalid(bl, id);
-      return_txs_to_pool();
-      return false;
-    }
-    if (has_asset_operation)
-    {
-      std::string asset_error;
-      if (!candidate_numista_assets.apply_tx_extra(tx.extra, &asset_error))
+      bool has_asset_operation = false;
+      if (!has_numista_asset_operation(tx.extra, has_asset_operation)
+        || (has_asset_operation && hf_version < HF_VERSION_NUMISTA_ASSETS))
       {
-        MERROR_VER("Invalid Numista asset operation in transaction " << tx_id << ": " << asset_error);
+        MERROR_VER("Transaction has malformed or pre-activation Numista asset data");
         bvc.m_verifivation_failed = true;
         add_block_as_invalid(bl, id);
         return_txs_to_pool();
         return false;
+      }
+      if (has_asset_operation)
+      {
+        std::string asset_error;
+        if (!candidate_numista_assets.apply_tx_extra(tx.extra, &asset_error))
+        {
+          MERROR_VER("Invalid Numista asset operation in transaction " << tx_id << ": " << asset_error);
+          bvc.m_verifivation_failed = true;
+          add_block_as_invalid(bl, id);
+          return_txs_to_pool();
+          return false;
+        }
       }
     }
 

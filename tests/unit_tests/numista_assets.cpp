@@ -253,17 +253,39 @@ TEST(numista_assets, numista_testnet_coinbase_includes_a_verifiable_game_fund_ou
 {
   cryptonote::account_base miner;
   miner.generate();
+  cryptonote::transaction ordinary_coinbase;
+  ASSERT_TRUE(cryptonote::construct_miner_tx(
+    1, 300000, 0, 1000, 0, miner.get_keys().m_account_address, ordinary_coinbase, {}, 999,
+    HF_VERSION_NUMISTA_ASSETS, cryptonote::MAINNET));
+
   cryptonote::transaction coinbase;
   ASSERT_TRUE(cryptonote::construct_miner_tx(
     1, 300000, 0, 1000, 0, miner.get_keys().m_account_address, coinbase, {}, 999,
     HF_VERSION_NUMISTA_ASSETS, cryptonote::NUMISTA_TESTNET));
   EXPECT_TRUE(cryptonote::has_valid_numista_game_fund_output(
     coinbase, cryptonote::NUMISTA_TESTNET, HF_VERSION_NUMISTA_ASSETS));
-  ASSERT_EQ(2, coinbase.vout.size());
+  ASSERT_EQ(ordinary_coinbase.vout.size() + 1, coinbase.vout.size());
   EXPECT_EQ(config::numista_testnet::NUMISTA_GAME_FUND_REWARD, coinbase.vout.back().amount);
 
   coinbase.vout.back().amount += 1;
   EXPECT_FALSE(cryptonote::has_valid_numista_game_fund_output(
+    coinbase, cryptonote::NUMISTA_TESTNET, HF_VERSION_NUMISTA_ASSETS));
+}
+
+TEST(numista_assets, genesis_coinbase_does_not_require_a_game_fund_output)
+{
+  cryptonote::account_base miner;
+  miner.generate();
+
+  cryptonote::transaction coinbase;
+  ASSERT_TRUE(cryptonote::construct_miner_tx(
+    0, 300000, 0, 1000, 0, miner.get_keys().m_account_address, coinbase, {}, 999,
+    HF_VERSION_NUMISTA_ASSETS, cryptonote::NUMISTA_TESTNET));
+
+  EXPECT_EQ(0, cryptonote::get_numista_game_fund_reward(cryptonote::NUMISTA_TESTNET, 0));
+  EXPECT_EQ(config::numista_testnet::NUMISTA_GAME_FUND_REWARD,
+    cryptonote::get_numista_game_fund_reward(cryptonote::NUMISTA_TESTNET, 1));
+  EXPECT_TRUE(cryptonote::has_valid_numista_game_fund_output(
     coinbase, cryptonote::NUMISTA_TESTNET, HF_VERSION_NUMISTA_ASSETS));
 }
 

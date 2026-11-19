@@ -280,6 +280,8 @@ struct options {
         return (boost::filesystem::path(val) / "stagenet").string();
       else if (selected_networks[2])
         return (boost::filesystem::path(val) / "numista-testnet").string();
+      else if (selected_networks[3])
+        return val;
       return defaulted ? (boost::filesystem::path(val) / "numista-testnet").string() : val;
     }
   };
@@ -358,7 +360,7 @@ std::unique_ptr<tools::wallet2> make_basic(const boost::program_options::variabl
   const bool numista_testnet = command_line::get_arg(vm, opts.numista_testnet);
   const bool mainnet = command_line::get_arg(vm, opts.mainnet);
   const network_type nettype = testnet ? TESTNET : stagenet ? STAGENET
-    : mainnet ? MAINNET : NUMISTA_TESTNET;
+    : numista_testnet ? NUMISTA_TESTNET : mainnet ? MAINNET : NUMISTA_TESTNET;
   const uint64_t kdf_rounds = command_line::get_arg(vm, opts.kdf_rounds);
   THROW_WALLET_EXCEPTION_IF(kdf_rounds == 0, tools::error::wallet_internal_error, "KDF rounds must not be 0");
 
@@ -598,7 +600,7 @@ std::pair<std::unique_ptr<tools::wallet2>, tools::password_container> generate_f
   const bool numista_testnet = command_line::get_arg(vm, opts.numista_testnet);
   const bool mainnet = command_line::get_arg(vm, opts.mainnet);
   const network_type nettype = testnet ? TESTNET : stagenet ? STAGENET
-    : mainnet ? MAINNET : NUMISTA_TESTNET;
+    : numista_testnet ? NUMISTA_TESTNET : mainnet ? MAINNET : NUMISTA_TESTNET;
 
   /* GET_FIELD_FROM_JSON_RETURN_ON_ERROR Is a generic macro that can return
   false. Gcc will coerce this into unique_ptr(nullptr), but clang correctly
