@@ -331,9 +331,12 @@ namespace config
       0x54, 0x45, 0x53, 0x54, 0x00, 0x00, 0x00, 0x01
     }};
     std::string const GENESIS_TX = testnet::GENESIS_TX;
-    uint32_t const GENESIS_NONCE = 10003;
+    uint32_t const GENESIS_NONCE = 10004;
     // Consensus-fixed; an empty key disables issuer-authorized asset operations.
     const char NUMISTA_ASSET_ISSUER_PUBLIC_KEY_HEX[] = "938c1029985ba0e3d91d26f76491abd99dae405dd1caf959a6f5de73a94fe55b";
+    const uint64_t NUMISTA_GAME_FUND_REWARD = COIN / 2000;
+    const char NUMISTA_GAME_FUND_SPEND_PUBLIC_KEY_HEX[] = "9ac8784a300bc03bb751edbb0365b91526eb7f33d7320ebf7bdc14bee4d3f101";
+    const char NUMISTA_GAME_FUND_VIEW_PUBLIC_KEY_HEX[] = "b688ceaac41f702fc80a7f3b9628457334744ae153ae7f2765e412c392c58f4f";
   }
 }
 

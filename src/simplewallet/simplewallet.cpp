@@ -3227,6 +3227,9 @@ simple_wallet::simple_wallet()
   m_cmd_binder.set_handler("transfer", boost::bind(&simple_wallet::on_command, this, &simple_wallet::transfer, _1),
                            tr(USAGE_TRANSFER),
                            tr("Transfer <address> <amount>. If the parameter \"index=<N1>[,<N2>,...]\" is specified, the wallet uses outputs received by addresses of those indices. If omitted, the wallet randomly chooses address indices to be used. In any case, it tries its best not to combine outputs across multiple addresses. <priority> is the priority of the transaction. The higher the priority, the higher the transaction fee. Valid values in priority order (from lowest to highest) are: unimportant, normal, elevated, priority. If omitted, the default value (see the command \"set priority\") is used. <ring_size> is the number of inputs to include for untraceability. Multiple payments can be made at once by adding URI_2 or <address_2> <amount_2> etcetera (before the payment ID, if it's included). The \"subtractfeefrom=\" list allows you to choose which destinations to fund the tx fee from instead of the change output. The fee will be split across the chosen destinations proportionally equally. For example, to make 3 transfers where the fee is taken from the first and third destinations, one could do: \"transfer <addr1> 3 <addr2> 0.5 <addr3> 1 subtractfeefrom=0,2\". Let's say the tx fee is 0.1. The balance would drop by exactly 4.5 XMR including fees, and addr1 & addr3 would receive 2.925 & 0.975 XMR, respectively. Use \"subtractfeefrom=all\" to spread the fee across all destinations."));
+  m_cmd_binder.set_handler("numista_asset", boost::bind(&simple_wallet::on_command, this, &simple_wallet::numista_asset, _1),
+                           tr("numista_asset <register_username|create_asset|mint|transfer> ..."),
+                           tr("Create a signed Numista testnet asset operation. Issuer actions require the configured issuer wallet; transfers require the registered owner wallet."));
   m_cmd_binder.set_handler("sweep_unmixable",
                            boost::bind(&simple_wallet::on_command, this, &simple_wallet::sweep_unmixable, _1),
                            tr("Send all unmixable outputs to yourself with ring_size 1"));
@@ -7113,6 +7116,147 @@ bool simple_wallet::transfer(const std::vector<std::string> &args_)
     return true;
   }
   transfer_main(args_, false);
+  return true;
+}
+//----------------------------------------------------------------------------------------------------
+bool simple_wallet::numista_asset(const std::vector<std::string> &args)
+{
+  if (!m_wallet)
+  {
+    fail_msg_writer() << tr("wallet is null");
+    return true;
+  }
+  if (args.empty())
+  {
+    PRINT_USAGE("numista_asset register_username <username> <asset_key_hex> | create_asset <asset_id_hex> <fungible|collectible> <max_supply> <metadata_hash_hex> | mint <asset_id_hex> <fungible|collectible> <username> <amount> | transfer <asset_id_hex> <fungible|collectible> <from_username> <to_username> <amount>");
+    return true;
+  }
+  if (!try_connect_to_daemon())
+    return false;
+
+  cryptonote::tx_extra_numista_asset operation;
+  const std::string& action = args[0];
+  if (action == "register_username" && args.size() == 3)
+  {
+    operation.action = cryptonote::numista_asset_action::register_username;
+    operation.username = args[1];
+    if (!epee::string_tools::hex_to_pod(args[2], operation.asset_key))
+    {
+      fail_msg_writer() << tr("asset_key must be a 32-byte public key encoded as hex");
+      return true;
+    }
+  }
+  else if (action == "create_asset" && args.size() == 5)
+  {
+    operation.action = cryptonote::numista_asset_action::create_asset;
+    if (!epee::string_tools::hex_to_pod(args[1], operation.asset_id)
+      || !epee::string_tools::hex_to_pod(args[4], operation.metadata_hash)
+      || !epee::string_tools::get_xtype_from_string(operation.max_supply, args[3]))
+    {
+      fail_msg_writer() << tr("asset_id and metadata_hash must be 32-byte hex values and max_supply must be an integer");
+      return true;
+    }
+    if (args[2] == "fungible")
+      operation.asset_type = cryptonote::numista_asset_type::fungible;
+    else if (args[2] == "collectible")
+      operation.asset_type = cryptonote::numista_asset_type::collectible;
+    else
+    {
+      fail_msg_writer() << tr("asset_type must be fungible or collectible");
+      return true;
+    }
+  }
+  else if ((action == "mint" || action == "transfer")
+    && ((action == "mint" && args.size() == 5) || (action == "transfer" && args.size() == 6)))
+  {
+    operation.action = action == "mint"
+      ? cryptonote::numista_asset_action::mint
+      : cryptonote::numista_asset_action::transfer;
+    if (!epee::string_tools::hex_to_pod(args[1], operation.asset_id))
+    {
+      fail_msg_writer() << tr("asset_id must be a 32-byte value encoded as hex");
+      return true;
+    }
+    if (args[2] == "fungible")
+      operation.asset_type = cryptonote::numista_asset_type::fungible;
+    else if (args[2] == "collectible")
+      operation.asset_type = cryptonote::numista_asset_type::collectible;
+    else
+    {
+      fail_msg_writer() << tr("asset_type must be fungible or collectible");
+      return true;
+    }
+    if (action == "mint")
+    {
+      operation.recipient_username = args[3];
+      if (!epee::string_tools::get_xtype_from_string(operation.amount, args[4]))
+      {
+        fail_msg_writer() << tr("amount must be an integer");
+        return true;
+      }
+    }
+    else
+    {
+      operation.username = args[3];
+      operation.recipient_username = args[4];
+      if (!epee::string_tools::get_xtype_from_string(operation.amount, args[5]))
+      {
+        fail_msg_writer() << tr("amount must be an integer");
+        return true;
+      }
+    }
+  }
+  else
+  {
+    PRINT_USAGE("numista_asset register_username <username> <asset_key_hex> | create_asset <asset_id_hex> <fungible|collectible> <max_supply> <metadata_hash_hex> | mint <asset_id_hex> <fungible|collectible> <username> <amount> | transfer <asset_id_hex> <fungible|collectible> <from_username> <to_username> <amount>");
+    return true;
+  }
+
+  SCOPED_WALLET_UNLOCK_ON_BAD_PASSWORD(return false;);
+
+  std::string signing_error;
+  if (!m_wallet->sign_numista_asset_operation(operation, signing_error))
+  {
+    fail_msg_writer() << signing_error;
+    return true;
+  }
+  std::vector<uint8_t> extra;
+  if (!cryptonote::add_numista_asset_operation(extra, operation))
+  {
+    fail_msg_writer() << tr("Failed to serialize Numista asset operation");
+    return true;
+  }
+
+  try
+  {
+    std::vector<cryptonote::tx_destination_entry> destinations;
+    destinations.emplace_back(1, m_wallet->get_account().get_keys().m_account_address, false);
+    const size_t fake_outs_count = std::max<uint64_t>(m_wallet->get_min_ring_size(), 1) - 1;
+    const fee_priority priority = m_wallet->adjust_priority(m_wallet->get_default_priority());
+    std::vector<tools::wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_2(
+      destinations, fake_outs_count, priority, extra, m_current_subaddress_account, {});
+    if (ptx_vector.size() != 1)
+    {
+      fail_msg_writer() << tr("Numista asset operation must fit in one transaction");
+      return true;
+    }
+
+    std::stringstream prompt;
+    prompt << "Commit Numista asset operation " << action << " with fee " << print_money(ptx_vector.front().fee) << "?";
+    const std::string accepted = input_line(prompt.str(), true);
+    if (std::cin.eof() || !command_line::is_yes(accepted))
+    {
+      fail_msg_writer() << tr("transaction cancelled.");
+      return true;
+    }
+    m_wallet->commit_tx(ptx_vector);
+    success_msg_writer() << tr("Numista asset operation submitted: ")
+      << epee::string_tools::pod_to_hex(cryptonote::get_transaction_hash(ptx_vector.front().tx));
+  }
+  catch (const std::exception& e)
+  {
+    fail_msg_writer() << e.what();
+  }
   return true;
 }
 //----------------------------------------------------------------------------------------------------

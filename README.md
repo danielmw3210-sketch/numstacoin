@@ -77,6 +77,9 @@ production game services. A distinct network, coin parameters, game-asset
 consensus enforcement, and integration with the game backend still need to be
 designed and implemented.
 
+For current Numista testnet RPC connectivity and the implemented endpoint
+list, see the [game developer guide](gamedev.md).
+
 ## Roadmap
 
 1. Define the asset payload and issuer/owner authorization rules. The initial

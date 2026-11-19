@@ -573,6 +573,24 @@ bool Blockchain::check_numista_asset_tx(const transaction& tx) const
   return true;
 }
 //------------------------------------------------------------------
+bool Blockchain::get_numista_asset(const crypto::hash& asset_id, numista_asset_record& record) const
+{
+  CRITICAL_REGION_LOCAL1(m_blockchain_lock);
+  return m_numista_assets.get_asset(asset_id, record);
+}
+
+bool Blockchain::get_numista_asset_balance(const crypto::hash& asset_id, const std::string& username, uint64_t& balance) const
+{
+  CRITICAL_REGION_LOCAL1(m_blockchain_lock);
+  return m_numista_assets.get_balance(asset_id, username, balance);
+}
+
+bool Blockchain::get_numista_asset_username_key(const std::string& username, crypto::public_key& key) const
+{
+  CRITICAL_REGION_LOCAL1(m_blockchain_lock);
+  return m_numista_assets.get_username_key(username, key);
+}
+
 bool Blockchain::rebuild_numista_asset_state()
 {
   CRITICAL_REGION_LOCAL1(m_blockchain_lock);
@@ -1494,29 +1512,45 @@ bool Blockchain::validate_miner_transaction(const block& b, size_t cumulative_bl
     MERROR_VER("block weight " << cumulative_block_weight << " is bigger than allowed for this blockchain");
     return false;
   }
-  if(base_reward + fee < money_in_use)
+  const uint64_t game_fund_reward = get_numista_game_fund_reward(m_nettype);
+  if (game_fund_reward && !has_valid_numista_game_fund_output(b.miner_tx, m_nettype, version))
   {
-    MERROR_VER("coinbase transaction spend too much money (" << print_money(money_in_use) << "). Block reward is " << print_money(base_reward + fee) << "(" << print_money(base_reward) << "+" << print_money(fee) << "), cumulative_block_weight " << cumulative_block_weight);
+    MERROR_VER("miner transaction does not pay the required Numista game-fund reward");
+    return false;
+  }
+  if (base_reward > std::numeric_limits<uint64_t>::max() - fee
+    || base_reward + fee > std::numeric_limits<uint64_t>::max() - game_fund_reward)
+  {
+    MERROR_VER("block reward amount overflow");
+    return false;
+  }
+  const uint64_t expected_reward = base_reward + fee + game_fund_reward;
+  if(expected_reward < money_in_use)
+  {
+    MERROR_VER("coinbase transaction spend too much money (" << print_money(money_in_use) << "). Block reward is " << print_money(expected_reward) << "(" << print_money(base_reward) << "+" << print_money(fee) << "+" << print_money(game_fund_reward) << "), cumulative_block_weight " << cumulative_block_weight);
     return false;
   }
   // From hard fork 2 till 12, we allow a miner to claim less block reward than is allowed, in case a miner wants less dust
   if (version < 2 || version >= HF_VERSION_EXACT_COINBASE)
   {
-    if(base_reward + fee != money_in_use)
+    if(expected_reward != money_in_use)
     {
-      MDEBUG("coinbase transaction doesn't use full amount of block reward:  spent: " << money_in_use << ",  block reward " << base_reward + fee << "(" << base_reward << "+" << fee << ")");
+      MDEBUG("coinbase transaction doesn't use full amount of block reward:  spent: " << money_in_use << ",  block reward " << expected_reward << "(" << base_reward << "+" << fee << "+" << game_fund_reward << ")");
       return false;
     }
+    base_reward += game_fund_reward;
   }
   else
   {
     // from hard fork 2, since a miner can claim less than the full block reward, we update the base_reward
     // to show the amount of coins that were actually generated, the remainder will be pushed back for later
     // emission. This modifies the emission curve very slightly.
-    CHECK_AND_ASSERT_MES(money_in_use - fee <= base_reward, false, "base reward calculation bug");
-    if(base_reward + fee != money_in_use)
+    CHECK_AND_ASSERT_MES(money_in_use >= fee + game_fund_reward, false, "coinbase transaction does not cover the required game-fund reward");
+    const uint64_t miner_base_reward = money_in_use - fee - game_fund_reward;
+    CHECK_AND_ASSERT_MES(miner_base_reward <= base_reward, false, "base reward calculation bug");
+    if(expected_reward != money_in_use)
       partial_block_reward = true;
-    base_reward = money_in_use - fee;
+    base_reward = miner_base_reward + game_fund_reward;
   }
   return true;
 }
@@ -1789,7 +1823,7 @@ bool Blockchain::create_block_template(block& b, const crypto::hash *from_block,
   for (size_t try_count = 0; try_count != 10; ++try_count)
   {
     const bool miner_tx_made = construct_miner_tx(height, median_weight, already_generated_coins,
-      cumulative_weight, fee, miner_address, b.miner_tx, ex_nonce, max_outs, hf_version);
+      cumulative_weight, fee, miner_address, b.miner_tx, ex_nonce, max_outs, hf_version, m_nettype);
 
     // On miner tx creation failure, if we have txs to pop, try that...
     if (!miner_tx_made)

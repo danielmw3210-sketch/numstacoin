@@ -2,9 +2,10 @@
 
 ## Required next work
 
-The Numista testnet and asset-consensus changes have not yet been compiled or
-run through their tests. Do not call the testnet operational or publish a
-Windows executable until these steps have completed successfully:
+The Numista testnet asset APIs and game-fund consensus reward are implemented,
+but the current changes have not yet passed a complete build and test run. Do
+not call the testnet operational or publish a Windows executable until these
+steps have completed successfully:
 
 1. In Codespaces, initialize the repository submodules and configure a clean
    release build with tests enabled.
@@ -12,8 +13,9 @@ Windows executable until these steps have completed successfully:
    `numista_assets` unit tests. Fix failures caused by this fork, then repeat
    the full build and test commands. Report any unrelated baseline failures.
 3. Check Numista testnet startup, fresh genesis creation, restart/reopen,
-   version-17 activation, and asset-ledger rollback/reorganization behavior.
-   Record that the test issuer private key is not in the repository.
+   version-17 activation, game-fund reward validation, and asset-ledger
+   rollback/reorganization behavior. Record that the test issuer private key
+   is not in the repository.
 4. Once the source build and tests pass, build the Windows x64 release
    executables using the project's Windows cross-compilation dependencies or
    a Windows build runner. Do not label a Linux binary or an untested build as
@@ -46,7 +48,11 @@ Windows executable until these steps have completed successfully:
   explicitly selected with `--mainnet`.
 - Keep the Numista testnet issuer public key consensus-fixed. Never commit or
   print the corresponding private scalar, and never reuse it on production.
+- Numista testnet adds a `0.0005` coin game-fund reward to mined blocks. The
+  genesis nonce was changed; existing testnet databases must be reinitialized.
 - Production network parameters remain intentionally unset. Do not invent
   production genesis, activation, address-prefix, port, or issuer-key values.
-- Asset RPC and wallet commands are not implemented. Do not describe the
-  prototype as production-ready or as a complete NFT system.
+- Asset daemon RPCs and wallet CLI/RPC operations are implemented. The
+  production profile's separate fund keys are not active until production
+  network parameters are configured. Do not describe the prototype as
+  production-ready or as a complete NFT system.

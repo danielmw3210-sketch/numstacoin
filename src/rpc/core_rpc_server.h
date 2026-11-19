@@ -157,6 +157,9 @@ namespace cryptonote
         MAP_JON_RPC_WE("getblock",                on_get_block,                 COMMAND_RPC_GET_BLOCK)
         MAP_JON_RPC_WE_IF("get_connections",     on_get_connections,            COMMAND_RPC_GET_CONNECTIONS, !m_restricted)
         MAP_JON_RPC_WE("get_info",               on_get_info_json,              COMMAND_RPC_GET_INFO)
+        MAP_JON_RPC_WE("get_numista_asset", on_get_numista_asset, COMMAND_RPC_GET_NUMISTA_ASSET)
+        MAP_JON_RPC_WE("get_numista_asset_balance", on_get_numista_asset_balance, COMMAND_RPC_GET_NUMISTA_ASSET_BALANCE)
+        MAP_JON_RPC_WE("get_numista_asset_username_key", on_get_numista_asset_username_key, COMMAND_RPC_GET_NUMISTA_ASSET_USERNAME_KEY)
         MAP_JON_RPC_WE("hard_fork_info",         on_hard_fork_info,             COMMAND_RPC_HARD_FORK_INFO)
         MAP_JON_RPC_WE_IF("set_bans",            on_set_bans,                   COMMAND_RPC_SETBANS, !m_restricted)
         MAP_JON_RPC_WE_IF("get_bans",            on_get_bans,                   COMMAND_RPC_GETBANS, !m_restricted)
@@ -228,6 +231,9 @@ namespace cryptonote
     bool on_get_block(const COMMAND_RPC_GET_BLOCK::request& req, COMMAND_RPC_GET_BLOCK::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_get_connections(const COMMAND_RPC_GET_CONNECTIONS::request& req, COMMAND_RPC_GET_CONNECTIONS::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_get_info_json(const COMMAND_RPC_GET_INFO::request& req, COMMAND_RPC_GET_INFO::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
+    bool on_get_numista_asset(const COMMAND_RPC_GET_NUMISTA_ASSET::request& req, COMMAND_RPC_GET_NUMISTA_ASSET::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
+    bool on_get_numista_asset_balance(const COMMAND_RPC_GET_NUMISTA_ASSET_BALANCE::request& req, COMMAND_RPC_GET_NUMISTA_ASSET_BALANCE::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
+    bool on_get_numista_asset_username_key(const COMMAND_RPC_GET_NUMISTA_ASSET_USERNAME_KEY::request& req, COMMAND_RPC_GET_NUMISTA_ASSET_USERNAME_KEY::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_hard_fork_info(const COMMAND_RPC_HARD_FORK_INFO::request& req, COMMAND_RPC_HARD_FORK_INFO::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_set_bans(const COMMAND_RPC_SETBANS::request& req, COMMAND_RPC_SETBANS::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_get_bans(const COMMAND_RPC_GETBANS::request& req, COMMAND_RPC_GETBANS::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);

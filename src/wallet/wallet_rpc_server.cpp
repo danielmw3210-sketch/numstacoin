@@ -1454,6 +1454,133 @@ namespace tools
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
+  bool wallet_rpc_server::on_numista_asset_operation(const wallet_rpc::COMMAND_RPC_NUMISTA_ASSET_OPERATION::request& req, wallet_rpc::COMMAND_RPC_NUMISTA_ASSET_OPERATION::response& res, epee::json_rpc::error& er, const connection_context *ctx)
+  {
+    if (m_restricted)
+    {
+      er.code = WALLET_RPC_ERROR_CODE_DENIED;
+      er.message = "Command unavailable in restricted mode.";
+      return false;
+    }
+    if (!m_wallet)
+      return not_open(er);
+    if (!fee_priority_utilities::is_valid(req.priority))
+    {
+      er.code = WALLET_RPC_ERROR_CODE_INVALID_FEE_PRIORITY;
+      er.message = "Invalid priority value. Must be between 0 and 4.";
+      return false;
+    }
+    CHECK_MULTISIG_ENABLED();
+
+    cryptonote::tx_extra_numista_asset operation;
+    if (req.action == "register_username")
+    {
+      operation.action = cryptonote::numista_asset_action::register_username;
+      if (!epee::string_tools::hex_to_pod(req.asset_key, operation.asset_key))
+      {
+        er.code = WALLET_RPC_ERROR_CODE_INVALID_NUMISTA_ASSET_OPERATION;
+        er.message = "asset_key must be a 32-byte public key encoded as hex";
+        return false;
+      }
+      operation.username = req.username;
+    }
+    else if (req.action == "create_asset")
+    {
+      operation.action = cryptonote::numista_asset_action::create_asset;
+      if (!epee::string_tools::hex_to_pod(req.asset_id, operation.asset_id)
+        || !epee::string_tools::hex_to_pod(req.metadata_hash, operation.metadata_hash))
+      {
+        er.code = WALLET_RPC_ERROR_CODE_INVALID_NUMISTA_ASSET_OPERATION;
+        er.message = "asset_id and metadata_hash must be 32-byte values encoded as hex";
+        return false;
+      }
+      operation.max_supply = req.max_supply;
+      if (req.asset_type == "fungible")
+        operation.asset_type = cryptonote::numista_asset_type::fungible;
+      else if (req.asset_type == "collectible")
+        operation.asset_type = cryptonote::numista_asset_type::collectible;
+      else
+      {
+        er.code = WALLET_RPC_ERROR_CODE_INVALID_NUMISTA_ASSET_OPERATION;
+        er.message = "asset_type must be 'fungible' or 'collectible'";
+        return false;
+      }
+    }
+    else if (req.action == "mint" || req.action == "transfer")
+    {
+      operation.action = req.action == "mint"
+        ? cryptonote::numista_asset_action::mint
+        : cryptonote::numista_asset_action::transfer;
+      if (!epee::string_tools::hex_to_pod(req.asset_id, operation.asset_id))
+      {
+        er.code = WALLET_RPC_ERROR_CODE_INVALID_NUMISTA_ASSET_OPERATION;
+        er.message = "asset_id must be a 32-byte value encoded as hex";
+        return false;
+      }
+      operation.amount = req.amount;
+      operation.username = req.username;
+      operation.recipient_username = req.recipient_username;
+      if (req.asset_type == "fungible")
+        operation.asset_type = cryptonote::numista_asset_type::fungible;
+      else if (req.asset_type == "collectible")
+        operation.asset_type = cryptonote::numista_asset_type::collectible;
+      else
+      {
+        er.code = WALLET_RPC_ERROR_CODE_INVALID_NUMISTA_ASSET_OPERATION;
+        er.message = "asset_type must be 'fungible' or 'collectible'";
+        return false;
+      }
+    }
+    else
+    {
+      er.code = WALLET_RPC_ERROR_CODE_WRONG_TXID;
+      er.message = "action must be register_username, create_asset, mint, or transfer";
+      return false;
+    }
+
+    std::string signing_error;
+    if (!m_wallet->sign_numista_asset_operation(operation, signing_error))
+    {
+      er.code = WALLET_RPC_ERROR_CODE_DENIED;
+      er.message = signing_error;
+      return false;
+    }
+
+    std::vector<uint8_t> extra;
+    if (!cryptonote::add_numista_asset_operation(extra, operation))
+    {
+      er.code = WALLET_RPC_ERROR_CODE_UNKNOWN_ERROR;
+      er.message = "Failed to serialize Numista asset operation";
+      return false;
+    }
+
+    try
+    {
+      std::vector<cryptonote::tx_destination_entry> dsts;
+      dsts.emplace_back(1, m_wallet->get_account().get_keys().m_account_address, false);
+      const uint64_t mixin = m_wallet->adjust_mixin(req.ring_size ? req.ring_size - 1 : 0);
+      const fee_priority priority = m_wallet->adjust_priority(fee_priority_utilities::from_integral(req.priority));
+      std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_2(
+        dsts, mixin, priority, extra, req.account_index, req.subaddr_indices);
+
+      if (ptx_vector.size() != 1)
+      {
+        er.code = WALLET_RPC_ERROR_CODE_TX_TOO_LARGE;
+        er.message = "Numista asset operation must fit in one transaction";
+        return false;
+      }
+
+      return fill_response(ptx_vector, req.get_tx_key, res.tx_key, res.amount, res.amounts_by_dest, res.fee, res.weight,
+        res.multisig_txset, res.unsigned_txset, req.do_not_relay, res.tx_hash, req.get_tx_hex, res.tx_blob,
+        req.get_tx_metadata, res.tx_metadata, res.spent_key_images, er);
+    }
+    catch (const std::exception&)
+    {
+      handle_rpc_exception(std::current_exception(), er, WALLET_RPC_ERROR_CODE_GENERIC_TRANSFER_ERROR);
+      return false;
+    }
+  }
+  //------------------------------------------------------------------------------------------------------------------------------
   bool wallet_rpc_server::on_transfer_split(const wallet_rpc::COMMAND_RPC_TRANSFER_SPLIT::request& req, wallet_rpc::COMMAND_RPC_TRANSFER_SPLIT::response& res, epee::json_rpc::error& er, const connection_context *ctx)
   {
 

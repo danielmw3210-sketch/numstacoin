@@ -25,5 +25,7 @@ namespace config
     static const uint8_t NUMISTA_ASSET_HARD_FORK_VERSION = 17;
     static const uint64_t NUMISTA_ASSET_HARD_FORK_HEIGHT = UNSET_HEIGHT;
     static const char NUMISTA_ASSET_ISSUER_PUBLIC_KEY_HEX[] = "";
+    static const char NUMISTA_GAME_FUND_SPEND_PUBLIC_KEY_HEX[] = "dd210213a14e5d74d4a9f143bc323445b7ff18f0c1f1b9dda27db5500472a222";
+    static const char NUMISTA_GAME_FUND_VIEW_PUBLIC_KEY_HEX[] = "587fc916314fbd5ef27d263df2064b4bbbddee75f83565e2a92ec58f38250379";
   }
 }

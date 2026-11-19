@@ -651,6 +651,9 @@ namespace cryptonote
       bool kept_by_block = false) const;
 
     bool check_numista_asset_tx(const transaction& tx) const;
+    bool get_numista_asset(const crypto::hash& asset_id, numista_asset_record& record) const;
+    bool get_numista_asset_balance(const crypto::hash& asset_id, const std::string& username, uint64_t& balance) const;
+    bool get_numista_asset_username_key(const std::string& username, crypto::public_key& key) const;
 
     /**
      * @brief get fee quantization mask

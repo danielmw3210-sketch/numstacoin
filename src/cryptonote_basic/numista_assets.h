@@ -37,6 +37,7 @@ namespace cryptonote
     bool revert_tx_extra(const std::vector<uint8_t>& tx_extra, std::string* error = nullptr);
     bool get_asset(const crypto::hash& asset_id, numista_asset_record& record) const;
     uint64_t get_balance(const crypto::hash& asset_id, const std::string& username) const;
+    bool get_balance(const crypto::hash& asset_id, const std::string& username, uint64_t& balance) const;
     bool get_username_key(const std::string& username, crypto::public_key& key) const;
 
   private:

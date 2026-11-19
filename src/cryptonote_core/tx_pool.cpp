@@ -1589,7 +1589,7 @@ namespace cryptonote
       return false;
     }
 
-    static_assert(MAX_HF_VERSION == 16, "Check below weights and limits");
+    static_assert(MAX_HF_VERSION == HF_VERSION_NUMISTA_ASSETS, "Check below weights and limits for new hardfork versions");
     const relay_category category = include_sensitive ? relay_category::legacy : relay_category::broadcasted;
     const size_t max_total_weight_pre_v5 = (130 * median_weight) / 100;
     const size_t max_total_weight_v5 = 2 * median_weight;
