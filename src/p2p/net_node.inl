@@ -1229,10 +1229,12 @@ namespace nodetool
     network_zone& public_zone = m_network_zones.at(epee::net_utils::zone::public_);
 
     if ((m_nettype == cryptonote::MAINNET && public_zone.m_port != std::to_string(::config::P2P_DEFAULT_PORT))
-        || (m_nettype == cryptonote::TESTNET && public_zone.m_port != std::to_string(::config::testnet::P2P_DEFAULT_PORT))
-        || (m_nettype == cryptonote::STAGENET && public_zone.m_port != std::to_string(::config::stagenet::P2P_DEFAULT_PORT))) {
-      m_config_folder = m_config_folder + "/" + public_zone.m_port;
-    }
+    || (m_nettype == cryptonote::TESTNET && public_zone.m_port != std::to_string(::config::testnet::P2P_DEFAULT_PORT))
+    || (m_nettype == cryptonote::STAGENET && public_zone.m_port != std::to_string(::config::stagenet::P2P_DEFAULT_PORT))
+    || (m_nettype == cryptonote::NUMISTA_TESTNET && public_zone.m_port != std::to_string(::config::numista_testnet::P2P_DEFAULT_PORT)))
+{
+    m_config_folder = m_config_folder + "/" + public_zone.m_port;
+}
 
     res = init_config();
     CHECK_AND_ASSERT_MES(res, false, "Failed to init config.");
