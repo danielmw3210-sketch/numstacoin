@@ -660,7 +660,8 @@ namespace tools
       res.wallet_type = "Non-deterministic";
     else
       res.wallet_type = "Normal";
-    res.network_type = m_wallet->nettype() == cryptonote::TESTNET ? "Testnet"
+    res.network_type = m_wallet->nettype() == cryptonote::NUMISTA_TESTNET ? "Numista testnet"
+                     : m_wallet->nettype() == cryptonote::TESTNET ? "Testnet"
                      : m_wallet->nettype() == cryptonote::STAGENET ? "Stagenet"
                      : "Mainnet";
     res.daemon_address = m_wallet->get_daemon_address();
@@ -5138,6 +5139,7 @@ namespace tools
     const bool allow_dns = m_wallet ? m_wallet->is_dns_enabled()
       : wallet2::has_dns_option(*m_vm) && !wallet2::has_offline_option(*m_vm);
     static const struct { cryptonote::network_type type; const char *stype; } net_types[] = {
+      { cryptonote::NUMISTA_TESTNET, "numista-testnet" },
       { cryptonote::MAINNET, "mainnet" },
       { cryptonote::TESTNET, "testnet" },
       { cryptonote::STAGENET, "stagenet" },

@@ -380,7 +380,7 @@ bool t_command_parser_executor::start_mining(const std::vector<std::string>& arg
   {
     if(!cryptonote::get_account_address_from_str(info, cryptonote::TESTNET, args.front()))
     {
-      if(!cryptonote::get_account_address_from_str(info, cryptonote::STAGENET, args.front()))
+      if(!cryptonote::get_account_address_from_str(info, cryptonote::STAGENET, args.front()) && !cryptonote::get_account_address_from_str(info, cryptonote::NUMISTA_TESTNET, args.front()))
       {
         tools::dns_utils::dnssec_status dnssec;
         std::string address_str = tools::dns_utils::get_account_address_as_str_from_url(args.front(), dnssec,
@@ -401,14 +401,16 @@ bool t_command_parser_executor::start_mining(const std::vector<std::string>& arg
         {
           if(!cryptonote::get_account_address_from_str(info, cryptonote::TESTNET, address_str))
           {
-            if(!cryptonote::get_account_address_from_str(info, cryptonote::STAGENET, address_str))
+            if(!cryptonote::get_account_address_from_str(info, cryptonote::STAGENET, address_str)
+              && !cryptonote::get_account_address_from_str(info, cryptonote::NUMISTA_TESTNET, address_str))
             {
               std::cout << "Invalid syntax: Target account address has wrong format. For more details, use the help command." << std::endl;
               return true;
             }
             else
             {
-              nettype = cryptonote::STAGENET;
+              nettype = cryptonote::get_account_address_from_str(info, cryptonote::NUMISTA_TESTNET, address_str)
+                ? cryptonote::NUMISTA_TESTNET : cryptonote::STAGENET;
             }
           }
           else
@@ -419,7 +421,8 @@ bool t_command_parser_executor::start_mining(const std::vector<std::string>& arg
       }
       else
       {
-        nettype = cryptonote::STAGENET;
+        nettype = cryptonote::get_account_address_from_str(info, cryptonote::NUMISTA_TESTNET, args.front())
+          ? cryptonote::NUMISTA_TESTNET : cryptonote::STAGENET;
       }
     }
     else
@@ -432,8 +435,12 @@ bool t_command_parser_executor::start_mining(const std::vector<std::string>& arg
     tools::fail_msg_writer() << "subaddress for mining reward is not yet supported!" << std::endl;
     return true;
   }
-  if(nettype != cryptonote::MAINNET)
-    std::cout << "Mining to a " << (nettype == cryptonote::TESTNET ? "testnet" : "stagenet") << " address, make sure this is intentional!" << std::endl;
+  if (nettype != cryptonote::MAINNET)
+  {
+    const char *network_name = nettype == cryptonote::NUMISTA_TESTNET ? "Numista testnet"
+      : nettype == cryptonote::TESTNET ? "testnet" : "stagenet";
+    std::cout << "Mining to a " << network_name << " address, make sure this is intentional!" << std::endl;
+  }
   uint64_t threads_count = 1;
   bool do_background_mining = false;  
   bool ignore_battery = false;  

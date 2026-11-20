@@ -116,6 +116,8 @@ namespace {
         dir /= "testnet";
       else if (nettype == cryptonote::STAGENET)
         dir /= "stagenet";
+      else if (nettype == cryptonote::NUMISTA_TESTNET)
+        dir /= "numista-testnet";
       return dir.string();
     }
 

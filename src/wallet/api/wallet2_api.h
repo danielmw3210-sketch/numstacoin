@@ -47,7 +47,8 @@ namespace Monero {
 enum NetworkType : uint8_t {
     MAINNET = 0,
     TESTNET,
-    STAGENET
+    STAGENET,
+    NUMISTA_TESTNET = 4
 };
 
     namespace Utils {
@@ -480,6 +481,7 @@ struct Wallet
     bool mainnet() const { return nettype() == MAINNET; }
     bool testnet() const { return nettype() == TESTNET; }
     bool stagenet() const { return nettype() == STAGENET; }
+    bool numistaTestnet() const { return nettype() == NUMISTA_TESTNET; }
     //! returns current hard fork info
     virtual void hardForkInfo(uint8_t &version, uint64_t &earliest_height) const = 0;
     //! check if hard fork rules should be used
@@ -1184,7 +1186,11 @@ struct WalletManager
      * \return                Wallet instance (Wallet::status() needs to be called to check if created successfully)
      */
     virtual Wallet * createWallet(const std::string &path, const std::string &password, const std::string &language, NetworkType nettype, uint64_t kdf_rounds = 1) = 0;
-    Wallet * createWallet(const std::string &path, const std::string &password, const std::string &language, bool testnet = false)      // deprecated
+    Wallet * createWallet(const std::string &path, const std::string &password, const std::string &language)
+    {
+        return createWallet(path, password, language, NUMISTA_TESTNET);
+    }
+    Wallet * createWallet(const std::string &path, const std::string &password, const std::string &language, bool testnet)      // deprecated
     {
         return createWallet(path, password, language, testnet ? TESTNET : MAINNET);
     }
@@ -1199,7 +1205,11 @@ struct WalletManager
      * \return                Wallet instance (Wallet::status() needs to be called to check if opened successfully)
      */
     virtual Wallet * openWallet(const std::string &path, const std::string &password, NetworkType nettype, uint64_t kdf_rounds = 1, WalletListener * listener = nullptr) = 0;
-    Wallet * openWallet(const std::string &path, const std::string &password, bool testnet = false)     // deprecated
+    Wallet * openWallet(const std::string &path, const std::string &password)
+    {
+        return openWallet(path, password, NUMISTA_TESTNET);
+    }
+    Wallet * openWallet(const std::string &path, const std::string &password, bool testnet)     // deprecated
     {
         return openWallet(path, password, testnet ? TESTNET : MAINNET);
     }
@@ -1216,10 +1226,10 @@ struct WalletManager
      * \return                Wallet instance (Wallet::status() needs to be called to check if recovered successfully)
      */
     virtual Wallet * recoveryWallet(const std::string &path, const std::string &password, const std::string &mnemonic,
-                                    NetworkType nettype = MAINNET, uint64_t restoreHeight = 0, uint64_t kdf_rounds = 1,
+                                    NetworkType nettype = NUMISTA_TESTNET, uint64_t restoreHeight = 0, uint64_t kdf_rounds = 1,
                                     const std::string &seed_offset = {}) = 0;
     Wallet * recoveryWallet(const std::string &path, const std::string &password, const std::string &mnemonic,
-                                    bool testnet = false, uint64_t restoreHeight = 0)           // deprecated
+                                    bool testnet, uint64_t restoreHeight = 0)           // deprecated
     {
         return recoveryWallet(path, password, mnemonic, testnet ? TESTNET : MAINNET, restoreHeight);
     }
@@ -1234,7 +1244,11 @@ struct WalletManager
      * \return                Wallet instance (Wallet::status() needs to be called to check if recovered successfully)
      */
     virtual Wallet * recoveryWallet(const std::string &path, const std::string &mnemonic, NetworkType nettype, uint64_t restoreHeight = 0) = 0;
-    Wallet * recoveryWallet(const std::string &path, const std::string &mnemonic, bool testnet = false, uint64_t restoreHeight = 0)         // deprecated
+    Wallet * recoveryWallet(const std::string &path, const std::string &mnemonic)
+    {
+        return recoveryWallet(path, mnemonic, NUMISTA_TESTNET);
+    }
+    Wallet * recoveryWallet(const std::string &path, const std::string &mnemonic, bool testnet, uint64_t restoreHeight = 0)         // deprecated
     {
         return recoveryWallet(path, mnemonic, testnet ? TESTNET : MAINNET, restoreHeight);
     }
