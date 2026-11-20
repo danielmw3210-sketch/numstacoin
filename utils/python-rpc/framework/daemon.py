@@ -228,6 +228,43 @@ class Daemon(object):
         return self.rpc.send_json_rpc_request(get_info)
     getinfo = get_info
 
+    def get_numista_asset(self, asset_id, client = ""):
+        request = {
+            'method': 'get_numista_asset',
+            'params': {
+                'asset_id': asset_id,
+                'client': client,
+            },
+            'jsonrpc': '2.0',
+            'id': '0'
+        }
+        return self.rpc.send_json_rpc_request(request)
+
+    def get_numista_asset_balance(self, asset_id, username, client = ""):
+        request = {
+            'method': 'get_numista_asset_balance',
+            'params': {
+                'asset_id': asset_id,
+                'username': username,
+                'client': client,
+            },
+            'jsonrpc': '2.0',
+            'id': '0'
+        }
+        return self.rpc.send_json_rpc_request(request)
+
+    def get_numista_asset_username_key(self, username, client = ""):
+        request = {
+            'method': 'get_numista_asset_username_key',
+            'params': {
+                'username': username,
+                'client': client,
+            },
+            'jsonrpc': '2.0',
+            'id': '0'
+        }
+        return self.rpc.send_json_rpc_request(request)
+
     def hard_fork_info(self, client = ""):
         hard_fork_info = {
             'method': 'hard_fork_info',

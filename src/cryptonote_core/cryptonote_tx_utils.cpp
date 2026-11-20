@@ -118,7 +118,7 @@ namespace cryptonote
       preimage += std::to_string(height);
       crypto::ec_scalar scalar;
       crypto::hash_to_scalar(preimage.data(), preimage.size(), scalar);
-      static_cast<crypto::ec_scalar&>(crypto::unwrap(secret_key)) = scalar;
+      tools::unwrap(epee::unwrap(secret_key)) = scalar;
       return crypto::secret_key_to_public_key(secret_key, public_key);
     }
 
@@ -156,14 +156,17 @@ namespace cryptonote
     }
   }
 
-  uint64_t get_numista_game_fund_reward(network_type nettype)
+  uint64_t get_numista_game_fund_reward(network_type nettype, size_t height)
   {
-    return nettype == NUMISTA_TESTNET ? config::numista_testnet::NUMISTA_GAME_FUND_REWARD : 0;
+    return nettype == NUMISTA_TESTNET && height > 0 ? config::numista_testnet::NUMISTA_GAME_FUND_REWARD : 0;
   }
 
   bool has_valid_numista_game_fund_output(const transaction& tx, network_type nettype, uint8_t hard_fork_version)
   {
-    const uint64_t expected_amount = get_numista_game_fund_reward(nettype);
+    if (tx.vin.empty() || tx.vin.front().type() != typeid(txin_gen))
+      return false;
+    const size_t height = boost::get<txin_gen>(tx.vin.front()).height;
+    const uint64_t expected_amount = get_numista_game_fund_reward(nettype, height);
     if (expected_amount == 0)
       return true;
 
@@ -171,9 +174,6 @@ namespace cryptonote
     if (!get_numista_game_fund_address(address))
       return false;
 
-    if (tx.vin.empty() || tx.vin.front().type() != typeid(txin_gen))
-      return false;
-    const size_t height = boost::get<txin_gen>(tx.vin.front()).height;
     crypto::secret_key fund_tx_secret;
     crypto::public_key fund_tx_public;
     if (!get_numista_game_fund_tx_key(height, fund_tx_secret, fund_tx_public))
@@ -313,7 +313,7 @@ namespace cryptonote
     }
 
     CHECK_AND_ASSERT_MES(summary_amounts == block_reward, false, "Failed to construct miner tx, summary_amounts = " << summary_amounts << " not equal block_reward = " << block_reward);
-    if (get_numista_game_fund_reward(nettype) && !add_numista_game_fund_output(tx, txkey, height, hard_fork_version))
+    if (get_numista_game_fund_reward(nettype, height) && !add_numista_game_fund_output(tx, txkey, height, hard_fork_version))
     {
       LOG_PRINT_L0("Failed to construct Numista game-fund reward output");
       return false;
